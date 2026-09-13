@@ -75,13 +75,15 @@ docs/01-problem.md        what the thing does, the contract with Coddy, ship cri
 docs/02-prior-art.md      the survey, with numbers and URLs, and the gaps nobody has filled
 docs/03-architecture.md   prefilter, gate, retrieval, constrained generation, verification
 docs/04-data.md           schema mutation, instruction backtranslation, donated sessions
-docs/05-training.md       recipe, base-model licensing, VRAM and cost arithmetic
+docs/05-training.md       recipe, base-model licensing, VRAM and cost arithmetic, CPU-only training
 docs/06-eval.md           the four-rung baseline ladder and the sets that can falsify the design
 docs/07-roadmap.md        milestones, each with a kill criterion
 docs/08-review.md         independent cross-review of this plan, and what it changed
 notes/habr-1074678.md     the article that started this, and why it is a reference and not a base
 notes/reviews/            the three reviewers' raw answers, unedited
 experiments/schema_index/ builds the retrieval corpus from Coddy's schema and measures it
+experiments/bitness.py    what bits-per-weight a "1.58-bit" model really lands at
+experiments/cpu_training/ measures whether any of this can be trained without a GPU
 ```
 
 ## Try the one thing that runs

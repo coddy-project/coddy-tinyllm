@@ -112,7 +112,7 @@ fine-tuned a 125 M BitNet in ~10 minutes on a Galaxy S25.
 **No vendor has published GPU-hours for any ternary model.** Microsoft's
 [2B-4T report](https://arxiv.org/abs/2504.12285) gives the data mix and the LR schedule and no
 hardware. Falcon-E gives no compute figure. Spectra says V100 nodes and no hours. Everything in
-[05-training](05-training.md) §5.5 is therefore derived from 6ND, not reported.
+[05-training](05-training.md) §5.6 is therefore derived from 6ND, not reported.
 
 ## C. Small models on narrow structured tasks
 

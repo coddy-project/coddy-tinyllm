@@ -114,7 +114,50 @@ softmax intermediates are counted. Gemma 3 270M is worse (256 k vocab). Micro-ba
 a 24 GB card unless fused linear cross-entropy (Liger-Kernel, Cut Cross-Entropy) is used - with it,
 micro-batch 16 is reachable. Budget a day for this detail rather than discovering it at 3 a.m.
 
-## 5.4 The real cost centre: synthetic data
+## 5.4 Can this be trained on a CPU?
+
+Measured rather than assumed, on the machine this repository was written on - an i7-8750H, 6 cores
+and 12 threads, AVX2 and no AVX-512, torch 2.14+cpu (`experiments/cpu_training/train_bench.py`):
+
+| shape | params | tokens/s | effective |
+|---|---|---|---|
+| Qwen3-0.6B-like block stack | 210 M | 108 | 136 GFLOPS |
+| SmolLM2-135M-like | 44 M | 477 | 127 GFLOPS |
+| small encoder | 23 M | 577 | 80 GFLOPS |
+
+A plain 2048³ sgemm on the same machine reaches 217 GFLOPS under OpenBLAS, so training runs at about
+60 % of the matmul ceiling - respectable, and still three orders of magnitude below a rented GPU.
+Applying it to the real jobs (50 k examples × 1 200 tokens × 3 epochs = 180 M tokens):
+
+| Job | FLOPs | on this CPU | on one 4090 |
+|---|---|---|---|
+| SFT Qwen3-0.6B | 6.4e17 | **~57 days** | 2.8 h |
+| SFT SmolLM2-135M | 1.5e17 | **~13 days** | 40 min |
+| gate classifier, ~30 M encoder, 45 M tokens | 8.1e15 | **~28 h** | 4 min |
+| card reranker, ~30 M encoder, 144 M tokens | 2.6e16 | **~3.7 days** | 12 min |
+| BitDistill warm-up, 0.6 B, 10 B tokens | 4.7e19 | **~11 years** | 200 h |
+
+RAM is not the constraint - full AdamW fine-tuning of a 0.6 B model needs ~9.6 GB against the 31 GB
+on this machine. Time is.
+
+So the answer splits cleanly along the same line §3.7 draws. **The encoder cascade is CPU-trainable**:
+a gate overnight, a reranker over a long weekend, and a span extractor in a day, which makes the
+whole deterministic-plus-encoders product buildable with no GPU at all. **The generative model is
+not**: 57 days for one run of a 0.6 B model, and 13 days for a 135 M one that would still need a
+hyperparameter search on top. Research needs iterations, and one run per fortnight is not a research
+loop.
+
+Two things that would change this. A CPU with **AMX** (Xeon Sapphire Rapids and later) does bf16
+matmul roughly an order of magnitude faster than AVX2, which moves the 135 M run into the
+plausible-weekend range. And renting is so cheap here that the comparison barely matters - the entire
+supervised programme is under $15, which is less than the electricity of a laptop running flat out
+for 57 days.
+
+The asymmetry worth keeping in mind: one inference pass over a 1 000-token prompt through a 0.6 B
+model is ~1.2e12 FLOPs, about **500 000 times less** than the SFT run. That is why the CPU is a fine
+place to *run* this model and a bad place to *train* it.
+
+## 5.5 The real cost centre: synthetic data
 
 Generating 50 k verified examples with 2-4 bilingual paraphrases each, plus a round-trip check by a
 second model, is on the order of 20-40 M teacher output tokens. At commercial mid-tier API prices
@@ -130,7 +173,7 @@ established: **instruction backtranslation** ([Humpback](https://arxiv.org/abs/2
 instructions in [LongForm](https://arxiv.org/abs/2304.08460)), with
 [constraint back-translation](https://arxiv.org/pdf/2410.24175) as the closest analogue.
 
-## 5.5 Track B: the ternary conversion
+## 5.6 Track B: the ternary conversion
 
 Two ways to get a ternary model, and only one of them is sane.
 
@@ -171,7 +214,7 @@ The other half of track B's risk is not training at all, it is inference: see
 [02-prior-art](02-prior-art.md) §Go runtimes. A ternary model is only worth having if something can
 run it from Go.
 
-## 5.6 What can be skipped
+## 5.7 What can be skipped
 
 - **LoRA/QLoRA.** Not needed under 1 B; use it only if the experiment grid grows to dozens of runs
   where adapter swapping is convenient.
